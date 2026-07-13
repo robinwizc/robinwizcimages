@@ -1,4 +1,4 @@
-name: Unzip NFT Images Collection
+name: Unzip NFT Images to Root Folder
 
 on:
   push:
@@ -7,32 +7,40 @@ on:
   workflow_dispatch:
 
 jobs:
-  unzip-process:
+  unzip-and-flatten:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v4
 
-      - name: Create final images directory
-        run: mkdir -p images
+      - name: Create temporary and final directories
+        run: |
+          mkdir -p temp_extracted
+          mkdir -p images
 
-      - name: Unzip all parts into the images directory
+      - name: Extract all zip files into temporary directory
         run: |
           for file in part*.zip; do
             if [ -f "$file" ]; then
               echo "Extracting $file..."
-              unzip -o "$file" -d images/
+              unzip -o "$file" -d temp_extracted/
             fi
           done
 
-      - name: Remove original zip files to save space
-        run: rm -f part*.zip
+      - name: Flatten structure and move all images directly to images folder
+        run: |
+          find temp_extracted/ -type f \( -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" -o -name "*.webp" \) -exec mv {} images/ \;
 
-      - name: Commit and push unzipped images back to GitHub
+      - name: Clean up zip files and temporary directory
+        run: |
+          rm -f part*.zip
+          rm -rf temp_extracted
+
+      - name: Commit and push clean images back to GitHub
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add images/
-          git commit -m "Automated: Unzipped NFT images collection via GitHub Actions" || echo "No changes to commit"
+          git commit -m "Automated: Flattened and extracted all NFT images directly to images/ folder" || echo "No changes to commit"
           git push origin main
